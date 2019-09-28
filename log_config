@@ -1,0 +1,21 @@
+[loggers]
+keys=root
+
+[handlers]
+keys=fileHandler
+
+[formatters]
+keys=myFormatter
+
+[logger_root]
+level=DEBUG
+handlers=fileHandler
+qualname=srv
+
+[handler_fileHandler]
+class=FileHandler
+formatter=myFormatter
+args=("timetable.log","w",)
+
+[formatter_myFormatter]
+format=%(asctime)s - %(name)s - %(levelname)s - %(message)s
