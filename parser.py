@@ -8,6 +8,10 @@ import logging.config
 
 
 def load():
+    """
+    Загрузка ссылки из файла
+    :return: части ссылки для дальнейшего их использования в zakupki()
+    """
     res = []
     with open('cache') as f:
         for line in f:
@@ -16,6 +20,11 @@ def load():
 
 
 def save(url):
+    """
+    Сохранение ссылки в файл
+    :param url: ссылка
+    :return: части ссылки для дальнейшего их использования в zakupki()
+    """
     url = url.split('pageNumber=')
     url[0] += 'pageNumber='
     for i in range(len(url[1])):
@@ -31,8 +40,8 @@ def save(url):
 def zakupki(num, log, address_1, address_2, pages=None):
     """
     получаем ссылки на закупки с сайта zakupki.gov.ru
-    :param address_1:
-    :param address_2:
+    :param address_1: часть ссылки до номера старницы
+    :param address_2: часть ссылки после номера старницы
     :param num: номер страницы в поиске
     :param log: логгер
     :param pages: (опционально) сколько всего страниц
@@ -42,6 +51,7 @@ def zakupki(num, log, address_1, address_2, pages=None):
     print(num)
     response = requests.get(address_1 + str(num) + address_2)
     address_update = False
+    result = []
     if response.status_code != 200 or 'Поиск не дал результатов' in response.text:
         response = requests.get('http://zakupki.gov.ru/epz/contract/quicksearch/search.html?')
         pages = None
@@ -49,6 +59,11 @@ def zakupki(num, log, address_1, address_2, pages=None):
     if response.status_code == 200:
         tree = lxml.html.fromstring(response.text)
         objects = tree.xpath('//div[contains(@class, "registerBox")]//tr')
+        # for i in objects:
+        #     temp = lxml.html.
+        #     # temp = i.xpath('//td[@class="tenderTd"]//strong')
+        #     real_price = temp + temp
+        #     print()
         links = tree.xpath('//div[contains(@class, "registerBox")]//td[@class="descriptTenderTd"]'
                            '//a[contains(@class, "displayInlineBlockUsual widthAutoUsual")]/@href')
         log.debug('got ' + str(len(links)) + ' links')
@@ -72,9 +87,9 @@ def zakupki(num, log, address_1, address_2, pages=None):
                     driver.close()
             pages = int(pages[len(pages) - 1])
         if num < pages:
-            return links + zakupki(num + 1, log, address_1, address_2, pages)
+            return result + zakupki(num + 1, log, address_1, address_2, pages)
         else:
-            return links
+            return result
     else:
         log.error('status code: ' + str(response.status_code))
 
