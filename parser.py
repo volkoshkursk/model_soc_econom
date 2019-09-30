@@ -3,6 +3,7 @@ from selenium import webdriver
 import lxml.html
 import lxml.etree
 import requests
+import re
 
 import logging.config
 
@@ -59,11 +60,13 @@ def zakupki(num, log, address_1, address_2, pages=None):
     if response.status_code == 200:
         tree = lxml.html.fromstring(response.text)
         objects = tree.xpath('//div[contains(@class, "registerBox")]//tr')
-        # for i in objects:
-        #     temp = lxml.html.
-        #     # temp = i.xpath('//td[@class="tenderTd"]//strong')
-        #     real_price = temp + temp
-        #     print()
+        for i in objects:
+            single = lxml.html.fromstring(lxml.etree.tostring(i, pretty_print=False))  # только нужный нам кусочек
+            # страницы (данные только об одном аукционе)
+            real_price = int(
+                re.sub(r'[^0-9]', '', single.xpath('//td[@class="tenderTd"]//strong/text()')[0])) + 0.01 * int(
+                single.xpath('//td[@class="tenderTd"]//strong/span/text()')[0][1:])
+            print()
         links = tree.xpath('//div[contains(@class, "registerBox")]//td[@class="descriptTenderTd"]'
                            '//a[contains(@class, "displayInlineBlockUsual widthAutoUsual")]/@href')
         log.debug('got ' + str(len(links)) + ' links')
