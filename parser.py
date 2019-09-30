@@ -40,7 +40,7 @@ def save(url):
 
 def zakupki(num, log, address_1, address_2, pages=None):
     """
-    получаем ссылки на закупки с сайта zakupki.gov.ru
+    получаем название покупателей, цены контрактов (реальные) и ссылки на закупки с сайта zakupki.gov.ru
     :param address_1: часть ссылки до номера старницы
     :param address_2: часть ссылки после номера старницы
     :param num: номер страницы в поиске
@@ -66,10 +66,10 @@ def zakupki(num, log, address_1, address_2, pages=None):
             real_price = int(
                 re.sub(r'[^0-9]', '', single.xpath('//td[@class="tenderTd"]//strong/text()')[0])) + 0.01 * int(
                 single.xpath('//td[@class="tenderTd"]//strong/span/text()')[0][1:])
-            print()
-        links = tree.xpath('//div[contains(@class, "registerBox")]//td[@class="descriptTenderTd"]'
-                           '//a[contains(@class, "displayInlineBlockUsual widthAutoUsual")]/@href')
-        log.debug('got ' + str(len(links)) + ' links')
+            name = re.sub(r'[\n]', '', str(single.xpath('//dd[@class="nameOrganization"]/a/text()')[0]))
+            link = single.xpath('//td[@class="descriptTenderTd"]'
+                                '//a[contains(@class, "displayInlineBlockUsual widthAutoUsual")]/@href')
+            result.append([real_price, name, link])
         if pages is None:
             pages = tree.xpath('//ul[@class="pages"]//span/text()')
             if address_update:
