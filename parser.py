@@ -82,10 +82,7 @@ def zakupki(num, log, address_1, address_2, pages=None):
                     log.info('address saved')
                     del address_update
                 except Exception as e:
-                    if logger is not None:
-                        logger.error(e)
-                    else:
-                        print(e)
+                    logger.error(e)
                 finally:
                     driver.close()
             pages = int(pages[len(pages) - 1])
@@ -97,9 +94,40 @@ def zakupki(num, log, address_1, address_2, pages=None):
         log.error('status code: ' + str(response.status_code))
 
 
+def more_info(link, log):
+    """
+    Запрос дополнительных сведений об аукционе по ссылке
+    :param link: ссылка (не прямая)
+    :param log: логгер
+    :return:
+    """
+    log.debug('ask for ' + link)
+    tree = None
+    response = requests.get('http://zakupki.gov.ru' + link)
+    if response.status_code == 200:
+        tree = lxml.html.fromstring(response.text)
+    else:
+        log.error('status code: ' + str(response.status_code))
+        driver = webdriver.Firefox()
+        log.info('try to use firefox')
+        try:
+            driver.get('http://zakupki.gov.ru' + link)
+            tree = lxml.html.fromstring(driver.page_source)
+        except Exception as e:
+            log.error(e)
+        finally:
+            driver.close()
+    if tree is not None:
+        pass  # todo
+    else:
+        log.error('page ' + link + 'did not download')
+
+
 if __name__ == '__main__':
     logging.config.fileConfig('log_config')
     logger = logging.getLogger("root")
     logger.info("program started")
     cache = load()
-    print(len(zakupki(1, logger.getChild('get_links'), cache[0], cache[1])))
+    # list_of_tenders = zakupki(1, logger.getChild('get_links'), cache[0], cache[1])
+    more_info(zakupki(1, logger.getChild('get_links'), cache[0], cache[1], pages=1)[0][2][0],
+              logger.getChild('more_info'))
