@@ -173,7 +173,59 @@ def more_info(link, ministry, real_price, log):
                     result[i].append(None)
                     result[i].append(total)
             log.debug('record loaded')
-        # todo
+        elif cond[len(cond)-1][0:22] == 'medTable':  # для медицины
+            del cond
+            nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//table[contains(@class, "orderMedTable")]'
+                               '/tbody/tr[not (@*)]')
+            result = []
+            code, good_name, unit, quantity, price, cost = 'MED', None, None, None, None, None
+            for i in nodes:
+                single_node = lxml.html.fromstring(lxml.etree.tostring(i, pretty_print=False))
+                if 'delimTr' in single_node.xpath('//td/@class'):
+                    continue
+                string = single_node.xpath('//td/text()')
+                good_name = re.sub(r'(\n)|(\s\s)', '', string[1])
+                unit = re.sub(r'(\n)|(\s\s)', '', string[4])
+                quantity = float(re.sub(r'[^,0-9]', '', string[5]).translate(str.maketrans(',', '.')))
+                price = float(re.sub(r'[^,0-9]', '', string[6]).translate(str.maketrans(',', '.')))
+                cost = float(re.sub(r'[^,0-9]', '', string[7]).translate(str.maketrans(',', '.')))
+                result.append([place, code, good_name, None, unit, quantity, price, cost])
+            nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[@class="toggleTr displayNone"]')
+
+            total = float(re.sub(r'[^,0-9]', '', tree.xpath('//td[text()="Начальная (максимальная) цена контракта"]'
+                                                            '/../td/text()')[1]).translate(str.maketrans(',', '.')))
+            if len(nodes) == len(result):
+                for i in range(len(nodes)):
+                    single_node = lxml.html.fromstring(lxml.etree.tostring(nodes[i], pretty_print=False))
+                    temp = single_node.xpath('//td[@class="alignRight"]/text()')
+                    temp2 = single_node.xpath('//td[not (@*)]/text()')
+                    if len(temp) == len(temp2):
+                        for j in range(len(temp2)):
+                            temp2[j] = float(re.sub(r'[^,0-9]', '', temp2[j]).translate(str.maketrans(',', '.')))
+                        amount = sum(temp2)
+                    else:
+                        amount = result[i][5]-100
+
+                    if amount == result[i][5]:
+                        for j in range(len(temp)):
+                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), temp2[j]/amount]
+                    else:
+                        for j in range(len(temp)):
+                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), None]
+                    result[i].append(temp)
+                    result[i].append(total)
+                    del temp, temp2, amount
+            else:
+                for i in range(len(result)):
+                    result[i].append(None)
+                    result[i].append(total)
+            temp = tree.xpath('//h2[contains(text(),"Сведения о наименовании")]/../div//td/text()')[3::4]
+            if len(temp) == len(result):
+                for i in range(len(temp)):
+                    result[i][3] = re.sub(r'(\n)|(\s\s)', '', temp[i])
+        else:
+            log.warning('table has not been detected')
+
     else:
         log.error('page ' + link + 'did not downloaded')
     return result
