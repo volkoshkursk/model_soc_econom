@@ -1,6 +1,7 @@
 from selenium import webdriver
 
 import lxml.html
+import lxml
 import lxml.etree
 import requests
 import re
@@ -46,7 +47,7 @@ def zakupki(num, log, address_1, address_2, pages=None):
     :param num: номер страницы в поиске
     :param log: логгер
     :param pages: (опционально) сколько всего страниц
-    :return: лист ссылок на аукционы
+    :return: лист названий организаций, цен закупки, ссылок на аукционы
     """
     log.info('ask for ' + str(num) + ' page')
     print(num)
@@ -94,15 +95,18 @@ def zakupki(num, log, address_1, address_2, pages=None):
         log.error('status code: ' + str(response.status_code))
 
 
-def more_info(link, log):
+def more_info(link, ministry, real_price, log):
     """
     Запрос дополнительных сведений об аукционе по ссылке
     :param link: ссылка (не прямая)
+    :param ministry: Название заказчика (получено в zakupki)
+    :param real_price: Цена по результатам (получено в zakupki)
     :param log: логгер
     :return:
     """
     log.debug('ask for ' + link)
     tree = None
+    result = None
     response = requests.get('http://zakupki.gov.ru' + link)
     if response.status_code == 200:
         tree = lxml.html.fromstring(response.text)
@@ -118,9 +122,61 @@ def more_info(link, log):
         finally:
             driver.close()
     if tree is not None:
-        pass  # todo
+        place = tree.xpath('//td[text()="Место нахождения"]/../td/text()')[1].split(',')[2][:]
+        cond = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/div/@id')
+        if cond[len(cond) - 1][0:22] == 'purchaseObjectTruTable':  # для обычных закупок
+            del cond
+            nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[not (@*)]')
+            result = []
+            code, good_group_name, unit, quantity, price, cost = None, None, None, None, None, None
+            for i in nodes:
+                single_node = lxml.html.fromstring(lxml.etree.tostring(i, pretty_print=False))
+                string = single_node.xpath('//td/text()')
+                if len(string) > 2:
+                    code = re.sub(r'[^.0-9]', '', string[1])
+                    good_group_name = re.sub(r'(\n)|(\s\s)', '', string[2])
+                    unit = re.sub(r'(\n)|(\s\s)', '', string[3])
+                    quantity = float(re.sub(r'[^,0-9]', '', string[4]).translate(str.maketrans(',', '.')))
+                    price = float(re.sub(r'[^,0-9]', '', string[6]).translate(str.maketrans(',', '.')))
+                    cost = float(re.sub(r'[^,0-9]', '', string[7]).translate(str.maketrans(',', '.')))
+                else:
+                    result.append([place, code, re.sub(r'(\n)|(\s\s)', '', string[1]),
+                                   good_group_name, unit, quantity, price, cost, ministry, real_price])
+            total = float(re.sub(r'[^,0-9]', '', tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/'
+                                                            '/tr[@class="tdTotal"]/td[@class="alignCenter"]/text()')[
+                0]).
+                          translate(str.maketrans(',', '.')))
+            nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[@class="toggleTr displayNone"]')
+            if len(nodes) == len(result):
+                for i in range(len(nodes)):
+                    single_node = lxml.html.fromstring(lxml.etree.tostring(nodes[i], pretty_print=False))
+                    temp = single_node.xpath('//td[@class="alignRight"]/text()')
+                    temp2 = single_node.xpath('//td[not (@*)]/text()')
+                    if len(temp) == len(temp2):
+                        for j in range(len(temp2)):
+                            temp2[j] = float(re.sub(r'[^,0-9]', '', temp2[j]).translate(str.maketrans(',', '.')))
+                        amount = sum(temp2)
+                    else:
+                        amount = result[i][5] - 100
+
+                    if amount == result[i][5]:
+                        for j in range(len(temp)):
+                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), temp2[j] / amount]
+                    else:
+                        for j in range(len(temp)):
+                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), None]
+                    result[i].append(temp)
+                    result[i].append(total)
+                    del temp, temp2, amount
+            else:
+                for i in range(len(result)):
+                    result[i].append(None)
+                    result[i].append(total)
+            log.debug('record loaded')
+        # todo
     else:
-        log.error('page ' + link + 'did not download')
+        log.error('page ' + link + 'did not downloaded')
+    return result
 
 
 if __name__ == '__main__':
@@ -129,5 +185,5 @@ if __name__ == '__main__':
     logger.info("program started")
     cache = load()
     # list_of_tenders = zakupki(1, logger.getChild('get_links'), cache[0], cache[1])
-    more_info(zakupki(1, logger.getChild('get_links'), cache[0], cache[1], pages=1)[0][2][0],
-              logger.getChild('more_info'))
+    # more_info(zakupki(1, logger.getChild('get_links'), cache[0], cache[1], pages=1)[0][2][0],
+    #           logger.getChild('more_info'))
