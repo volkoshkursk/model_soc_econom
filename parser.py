@@ -130,18 +130,19 @@ def more_info(link, ministry, real_price, log):
             del cond
             nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[not (@*)]')
             head = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[@class="tdHead"]/td/text()')
+            head = set(map(lambda x: re.sub(r'[^A-Za-zА-Яа-я]', '', x), head))
             # в таблице могут быть не все окна
             result = []
             code, good_group_name, unit, quantity, price, cost = None, None, None, None, None, None
-            if 'Код позиции' in head:
+            if 'Кодпозиции' in head:
                 code = True
-            if 'Наименование товара, работы, услуги' in head:
+            if 'Наименованиетовараработыуслуги' in head:
                 good_group_name = True
             if 'Единица' in head:
                 unit = True
             if 'Количество' in head:
                 quantity = True
-            if 'Цена за ед.изм.' in head:
+            if 'Ценазаедизм' in head:
                 price = True
             if 'Стоимость' in head:
                 cost = True
@@ -149,12 +150,19 @@ def more_info(link, ministry, real_price, log):
                 single_node = lxml.html.fromstring(lxml.etree.tostring(ii, pretty_print=False))
                 string = single_node.xpath('//td/text()')
                 if len(string) > 2:
-                    code = re.sub(r'[^.0-9]', '', string[1])
-                    good_group_name = re.sub(r'(\n)|(\s\s)', '', string[2])
-                    unit = re.sub(r'(\n)|(\s\s)', '', string[3])
-                    quantity = float(re.sub(r'[^,0-9]', '', string[4]).translate(str.maketrans(',', '.')))
-                    price = float(re.sub(r'[^,0-9]', '', string[6]).translate(str.maketrans(',', '.')))
-                    cost = float(re.sub(r'[^,0-9]', '', string[7]).translate(str.maketrans(',', '.')))
+                    # todo длина строки мб разной
+                    if code:
+                        code = re.sub(r'[^.0-9]', '', string[1])
+                    if good_group_name:
+                        good_group_name = re.sub(r'(\n)|(\s\s)', '', string[2])
+                    if unit:
+                        unit = re.sub(r'(\n)|(\s\s)', '', string[3])
+                    if quantity:
+                        quantity = float(re.sub(r'[^,0-9]', '', string[4]).translate(str.maketrans(',', '.')))
+                    if price:
+                        price = float(re.sub(r'[^,0-9]', '', string[6]).translate(str.maketrans(',', '.')))
+                    if cost:
+                        cost = float(re.sub(r'[^,0-9]', '', string[7]).translate(str.maketrans(',', '.')))
                 else:
                     result.append([place, code, re.sub(r'(\n)|(\s\s)', '', string[1]),
                                    good_group_name, unit, quantity, price, cost, ministry, real_price])
@@ -195,18 +203,35 @@ def more_info(link, ministry, real_price, log):
             del cond
             nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//table[contains(@class, "orderMedTable")]'
                                '/tbody/tr[not (@*)]')
+            head = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[@class="tdHead"]/td/text()')
+            head = set(map(lambda x: re.sub(r'[^A-Za-zА-Яа-я]', '', x), head))
             result = []
             code, good_name, unit, quantity, price, cost = 'MED', None, None, None, None, None
+            if 'Международноенепатентованное' in head:
+                good_name = True
+            if 'Сведенияолекарственныхформах' in head:
+                unit = True
+            if 'Количество' in head:
+                quantity = True
+            if 'Ценазаедизм' in head:
+                price = True
+            if 'Стоимость' in head:
+                cost = True
             for ii in nodes:
                 single_node = lxml.html.fromstring(lxml.etree.tostring(ii, pretty_print=False))
                 if 'delimTr' in single_node.xpath('//td/@class'):
                     continue
                 string = single_node.xpath('//td/text()')
-                good_name = re.sub(r'(\n)|(\s\s)', '', string[1])
-                unit = re.sub(r'(\n)|(\s\s)', '', string[4])
-                quantity = float(re.sub(r'[^,0-9]', '', string[5]).translate(str.maketrans(',', '.')))
-                price = float(re.sub(r'[^,0-9]', '', string[6]).translate(str.maketrans(',', '.')))
-                cost = float(re.sub(r'[^,0-9]', '', string[7]).translate(str.maketrans(',', '.')))
+                if good_name:
+                    good_name = re.sub(r'(\n)|(\s\s)', '', string[1])
+                if unit:
+                    unit = re.sub(r'(\n)|(\s\s)', '', string[4])
+                if quantity:
+                    quantity = float(re.sub(r'[^,0-9]', '', string[5]).translate(str.maketrans(',', '.')))
+                if price:
+                    price = float(re.sub(r'[^,0-9]', '', string[6]).translate(str.maketrans(',', '.')))
+                if cost:
+                    cost = float(re.sub(r'[^,0-9]', '', string[7]).translate(str.maketrans(',', '.')))
                 result.append([place, code, good_name, None, unit, quantity, price, cost, ministry, real_price])
             nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[@class="toggleTr displayNone"]')
 
@@ -243,6 +268,7 @@ def more_info(link, ministry, real_price, log):
             if len(temp) == len(result):
                 for ii in range(len(temp)):
                     result[ii][3] = re.sub(r'(\n)|(\s\s)', '', temp[ii])
+            log.debug('medical record loaded')
         else:
             log.warning('table has not been detected')
 
@@ -274,10 +300,12 @@ if __name__ == '__main__':
         if len(list_of_tenders[i][2]) > 0 and list_of_tenders[i][2][0] not in saved[0]:
             info = more_info(list_of_tenders[i][2], list_of_tenders[i][1], list_of_tenders[i][0],
                              logger.getChild('more_info'))
-            command += "INSERT into inp values (" + "'" + str(info[0]) + "','" + str(info[1]) + "','" + str(info[2]) + \
-                       "','" + str(info[3]) + "','" + str(info[4]) + "'," + str(info[5]) + ',' + str(info[6]) + ',' +\
-                       str(info[7]) + ",'" + str(info[8]) + "'," + str(info[9]) + ",'" + str(info[10]) + "'," + \
-                       str(info[11]) + ",'" + str(info[12]) + "'); \n"
+            for record in info:
+                command += "INSERT into inp values (" + "'" + str(record[0]) + "','" + str(record[1]) + "','" +\
+                           str(record[2]) + "','" + str(record[3]) + "','" + str(record[4]) + "'," + str(record[5]) +\
+                           ',' + str(record[6]) + ',' + str(record[7]) + ",'" + str(record[8]) + "'," + str(record[9]) \
+                           + ",'" + str(record[10]) + "'," + str(record[11]) + ",'" + str(record[12]) + "'); \n"
+            del info
         elif (list_of_tenders[i][1], list_of_tenders[i][0]) not in saved[1] and len(list_of_tenders[i][2]) == 0:
             command += "INSERT into inp values (" + "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,'" + \
                        str(list_of_tenders[i][2]) + "'," + str(list_of_tenders[i][1]) + ", NULL, NULL, NULL); \n"
