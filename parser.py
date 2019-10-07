@@ -5,6 +5,7 @@ import lxml
 import lxml.etree
 import requests
 import re
+import sqlite3
 
 import logging.config
 
@@ -29,13 +30,13 @@ def save(url):
     """
     url = url.split('pageNumber=')
     url[0] += 'pageNumber='
-    for i in range(len(url[1])):
-        if url[1][i] not in {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}:
-            url[1] = url[1][i:]
+    for ii in range(len(url[1])):
+        if url[1][ii] not in {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}:
+            url[1] = url[1][ii:]
             break
     with open('cache', 'w') as f:
-        for i in url:
-            f.write(i + '\n')
+        for ii in url:
+            f.write(ii + '\n')
     return url[0], url[1]
 
 
@@ -61,8 +62,8 @@ def zakupki(num, log, address_1, address_2, pages=None):
     if response.status_code == 200:
         tree = lxml.html.fromstring(response.text)
         objects = tree.xpath('//div[contains(@class, "registerBox")]//tr')
-        for i in objects:
-            single = lxml.html.fromstring(lxml.etree.tostring(i, pretty_print=False))  # только нужный нам кусочек
+        for ii in objects:
+            single = lxml.html.fromstring(lxml.etree.tostring(ii, pretty_print=False))  # только нужный нам кусочек
             # страницы (данные только об одном аукционе)
             real_price = int(
                 re.sub(r'[^0-9]', '', single.xpath('//td[@class="tenderTd"]//strong/text()')[0])) + 0.01 * int(
@@ -104,6 +105,7 @@ def more_info(link, ministry, real_price, log):
     :param log: логгер
     :return:
     """
+    link = link[0]
     log.debug('ask for ' + link)
     tree = None
     result = None
@@ -127,10 +129,24 @@ def more_info(link, ministry, real_price, log):
         if cond[len(cond) - 1][0:22] == 'purchaseObjectTruTable':  # для обычных закупок
             del cond
             nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[not (@*)]')
+            head = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[@class="tdHead"]/td/text()')
+            # в таблице могут быть не все окна
             result = []
             code, good_group_name, unit, quantity, price, cost = None, None, None, None, None, None
-            for i in nodes:
-                single_node = lxml.html.fromstring(lxml.etree.tostring(i, pretty_print=False))
+            if 'Код позиции' in head:
+                code = True
+            if 'Наименование товара, работы, услуги' in head:
+                good_group_name = True
+            if 'Единица' in head:
+                unit = True
+            if 'Количество' in head:
+                quantity = True
+            if 'Цена за ед.изм.' in head:
+                price = True
+            if 'Стоимость' in head:
+                cost = True
+            for ii in nodes:
+                single_node = lxml.html.fromstring(lxml.etree.tostring(ii, pretty_print=False))
                 string = single_node.xpath('//td/text()')
                 if len(string) > 2:
                     code = re.sub(r'[^.0-9]', '', string[1])
@@ -148,8 +164,8 @@ def more_info(link, ministry, real_price, log):
                           translate(str.maketrans(',', '.')))
             nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[@class="toggleTr displayNone"]')
             if len(nodes) == len(result):
-                for i in range(len(nodes)):
-                    single_node = lxml.html.fromstring(lxml.etree.tostring(nodes[i], pretty_print=False))
+                for ii in range(len(nodes)):
+                    single_node = lxml.html.fromstring(lxml.etree.tostring(nodes[ii], pretty_print=False))
                     temp = single_node.xpath('//td[@class="alignRight"]/text()')
                     temp2 = single_node.xpath('//td[not (@*)]/text()')
                     if len(temp) == len(temp2):
@@ -157,30 +173,32 @@ def more_info(link, ministry, real_price, log):
                             temp2[j] = float(re.sub(r'[^,0-9]', '', temp2[j]).translate(str.maketrans(',', '.')))
                         amount = sum(temp2)
                     else:
-                        amount = result[i][5] - 100
+                        amount = result[ii][5] - 100
 
-                    if amount == result[i][5]:
+                    if amount == result[ii][5]:
                         for j in range(len(temp)):
                             temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), temp2[j] / amount]
                     else:
                         for j in range(len(temp)):
                             temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), None]
-                    result[i].append(temp)
-                    result[i].append(total)
+                    result[ii].append(temp)
+                    result[ii].append(total)
+                    result[ii].append(link)
                     del temp, temp2, amount
             else:
-                for i in range(len(result)):
-                    result[i].append(None)
-                    result[i].append(total)
+                for ii in range(len(result)):
+                    result[ii].append(None)
+                    result[ii].append(total)
+                    result[ii].append(link)
             log.debug('record loaded')
-        elif cond[len(cond)-1][0:22] == 'medTable':  # для медицины
+        elif cond[len(cond) - 1][0:22] == 'medTable':  # для медицины
             del cond
             nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//table[contains(@class, "orderMedTable")]'
                                '/tbody/tr[not (@*)]')
             result = []
             code, good_name, unit, quantity, price, cost = 'MED', None, None, None, None, None
-            for i in nodes:
-                single_node = lxml.html.fromstring(lxml.etree.tostring(i, pretty_print=False))
+            for ii in nodes:
+                single_node = lxml.html.fromstring(lxml.etree.tostring(ii, pretty_print=False))
                 if 'delimTr' in single_node.xpath('//td/@class'):
                     continue
                 string = single_node.xpath('//td/text()')
@@ -189,14 +207,14 @@ def more_info(link, ministry, real_price, log):
                 quantity = float(re.sub(r'[^,0-9]', '', string[5]).translate(str.maketrans(',', '.')))
                 price = float(re.sub(r'[^,0-9]', '', string[6]).translate(str.maketrans(',', '.')))
                 cost = float(re.sub(r'[^,0-9]', '', string[7]).translate(str.maketrans(',', '.')))
-                result.append([place, code, good_name, None, unit, quantity, price, cost])
+                result.append([place, code, good_name, None, unit, quantity, price, cost, ministry, real_price])
             nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[@class="toggleTr displayNone"]')
 
             total = float(re.sub(r'[^,0-9]', '', tree.xpath('//td[text()="Начальная (максимальная) цена контракта"]'
                                                             '/../td/text()')[1]).translate(str.maketrans(',', '.')))
             if len(nodes) == len(result):
-                for i in range(len(nodes)):
-                    single_node = lxml.html.fromstring(lxml.etree.tostring(nodes[i], pretty_print=False))
+                for ii in range(len(nodes)):
+                    single_node = lxml.html.fromstring(lxml.etree.tostring(nodes[ii], pretty_print=False))
                     temp = single_node.xpath('//td[@class="alignRight"]/text()')
                     temp2 = single_node.xpath('//td[not (@*)]/text()')
                     if len(temp) == len(temp2):
@@ -204,25 +222,27 @@ def more_info(link, ministry, real_price, log):
                             temp2[j] = float(re.sub(r'[^,0-9]', '', temp2[j]).translate(str.maketrans(',', '.')))
                         amount = sum(temp2)
                     else:
-                        amount = result[i][5]-100
+                        amount = result[ii][5] - 100
 
-                    if amount == result[i][5]:
+                    if amount == result[ii][5]:
                         for j in range(len(temp)):
-                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), temp2[j]/amount]
+                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), temp2[j] / amount]
                     else:
                         for j in range(len(temp)):
                             temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), None]
-                    result[i].append(temp)
-                    result[i].append(total)
+                    result[ii].append(temp)
+                    result[ii].append(total)
+                    result[ii].append(link)
                     del temp, temp2, amount
             else:
-                for i in range(len(result)):
-                    result[i].append(None)
-                    result[i].append(total)
+                for ii in range(len(result)):
+                    result[ii].append(None)
+                    result[ii].append(total)
+                    result[ii].append(link)
             temp = tree.xpath('//h2[contains(text(),"Сведения о наименовании")]/../div//td/text()')[3::4]
             if len(temp) == len(result):
-                for i in range(len(temp)):
-                    result[i][3] = re.sub(r'(\n)|(\s\s)', '', temp[i])
+                for ii in range(len(temp)):
+                    result[ii][3] = re.sub(r'(\n)|(\s\s)', '', temp[ii])
         else:
             log.warning('table has not been detected')
 
@@ -236,6 +256,39 @@ if __name__ == '__main__':
     logger = logging.getLogger("root")
     logger.info("program started")
     cache = load()
-    # list_of_tenders = zakupki(1, logger.getChild('get_links'), cache[0], cache[1])
-    # more_info(zakupki(1, logger.getChild('get_links'), cache[0], cache[1], pages=1)[0][2][0],
-    #           logger.getChild('more_info'))
+    list_of_tenders = zakupki(1, logger.getChild('get_links'), cache[0], cache[1], pages=1)
+    logger.info('got links')
+    conn = sqlite3.connect('collection.db')
+    logger.debug('db is opened')
+    cursor = conn.cursor()
+    cursor.execute("select link,ministry,real_price from inp")
+    from_db = cursor.fetchall()
+    saved = [set(), set()]  # [set of links, set of tuples (ministry + real_price)]
+    for i in from_db:
+        saved[0].add(i[0])
+        saved[1].add((i[1], i[2]))
+    logger.debug('data is ' + str(saved))
+    command = ''
+    logger.debug('total link: ' + str(len(list_of_tenders)))
+    for i in range(len(list_of_tenders)):
+        if len(list_of_tenders[i][2]) > 0 and list_of_tenders[i][2][0] not in saved[0]:
+            info = more_info(list_of_tenders[i][2], list_of_tenders[i][1], list_of_tenders[i][0],
+                             logger.getChild('more_info'))
+            command += "INSERT into inp values (" + "'" + str(info[0]) + "','" + str(info[1]) + "','" + str(info[2]) + \
+                       "','" + str(info[3]) + "','" + str(info[4]) + "'," + str(info[5]) + ',' + str(info[6]) + ',' +\
+                       str(info[7]) + ",'" + str(info[8]) + "'," + str(info[9]) + ",'" + str(info[10]) + "'," + \
+                       str(info[11]) + ",'" + str(info[12]) + "'); \n"
+        elif (list_of_tenders[i][1], list_of_tenders[i][0]) not in saved[1] and len(list_of_tenders[i][2]) == 0:
+            command += "INSERT into inp values (" + "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,'" + \
+                       str(list_of_tenders[i][2]) + "'," + str(list_of_tenders[i][1]) + ", NULL, NULL, NULL); \n"
+        else:
+            logger.debug('info found in db')
+        if i % 10 == 0 and i != 0:
+            cursor.execute(command)
+            logger.info('sent to db')
+        if i % 100 == 0 and i != 0:
+            conn.commit()
+            logger.info('commit')
+
+    conn.close()
+    logger.info(':-)')
