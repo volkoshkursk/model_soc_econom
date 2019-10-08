@@ -118,7 +118,10 @@ def more_info(link, ministry, real_price, log):
         log.info('try to use firefox')
         try:
             driver.get('http://zakupki.gov.ru' + link)
-            tree = lxml.html.fromstring(driver.page_source)
+            if 'Сайт временно недоступен' in driver.title:
+                log.error('site unavailable')
+            else:
+                tree = lxml.html.fromstring(driver.page_source)
         except Exception as e:
             log.error(e)
         finally:
@@ -135,34 +138,36 @@ def more_info(link, ministry, real_price, log):
             result = []
             code, good_group_name, unit, quantity, price, cost = None, None, None, None, None, None
             if 'Кодпозиции' in head:
-                code = True
+                code = 1
             if 'Наименованиетовараработыуслуги' in head:
-                good_group_name = True
+                good_group_name = 1
             if 'Единица' in head:
-                unit = True
+                unit = 1
             if 'Количество' in head:
-                quantity = True
+                quantity = 1
             if 'Ценазаедизм' in head:
-                price = True
+                price = 1
             if 'Стоимость' in head:
-                cost = True
+                cost = 1
             for ii in nodes:
                 single_node = lxml.html.fromstring(lxml.etree.tostring(ii, pretty_print=False))
                 string = single_node.xpath('//td/text()')
                 if len(string) > 2:
-                    # todo длина строки мб разной
                     if code:
                         code = re.sub(r'[^.0-9]', '', string[1])
                     if good_group_name:
-                        good_group_name = re.sub(r'(\n)|(\s\s)', '', string[2])
+                        good_group_name = re.sub(r'(\n)|(\s\s)', '', string[1+code])
                     if unit:
-                        unit = re.sub(r'(\n)|(\s\s)', '', string[3])
+                        unit = re.sub(r'(\n)|(\s\s)', '', string[1+code+good_group_name])
                     if quantity:
-                        quantity = float(re.sub(r'[^,0-9]', '', string[4]).translate(str.maketrans(',', '.')))
+                        quantity = float(re.sub(r'[^,0-9]', '', string[1+code+good_group_name+unit])
+                                         .translate(str.maketrans(',', '.')))
                     if price:
-                        price = float(re.sub(r'[^,0-9]', '', string[6]).translate(str.maketrans(',', '.')))
+                        price = float(re.sub(r'[^,0-9]', '', string[2+code+good_group_name+unit+quantity])
+                                      .translate(str.maketrans(',', '.')))
                     if cost:
-                        cost = float(re.sub(r'[^,0-9]', '', string[7]).translate(str.maketrans(',', '.')))
+                        cost = float(re.sub(r'[^,0-9]', '', string[2+code+good_group_name+unit+quantity+cost])
+                                     .translate(str.maketrans(',', '.')))
                 else:
                     result.append([place, code, re.sub(r'(\n)|(\s\s)', '', string[1]),
                                    good_group_name, unit, quantity, price, cost, ministry, real_price])
