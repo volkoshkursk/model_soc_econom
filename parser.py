@@ -1,4 +1,5 @@
 from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
 
 import lxml.html
 import lxml
@@ -76,7 +77,9 @@ def zakupki(num, log, address_1, address_2, pages=None):
             pages = tree.xpath('//ul[@class="pages"]//span/text()')
             if address_update:
                 log.info('updating address via Webdriver')
-                driver = webdriver.Firefox()
+                options = Options()
+                options.headless = True
+                driver = webdriver.Firefox(options=options)
                 try:
                     driver.get('http://zakupki.gov.ru/epz/contract/quicksearch/search.html?')
                     driver.find_element_by_xpath('//ul[@class="pages"]//a[@data-pagenumber="2"]').click()
@@ -114,7 +117,9 @@ def more_info(link, ministry, real_price, log):
         tree = lxml.html.fromstring(response.text)
     else:
         log.error('status code: ' + str(response.status_code))
-        driver = webdriver.Firefox()
+        options = Options()
+        options.headless = True
+        driver = webdriver.Firefox(options=options)
         log.info('try to use firefox')
         try:
             driver.get('http://zakupki.gov.ru' + link)
@@ -138,35 +143,49 @@ def more_info(link, ministry, real_price, log):
             result = []
             code, good_group_name, unit, quantity, price, cost = None, None, None, None, None, None
             if 'Кодпозиции' in head:
-                code = 1
+                code_cond = 1
+            else:
+                code_cond = 0
             if 'Наименованиетовараработыуслуги' in head:
-                good_group_name = 1
+                good_group_name_cond = 1
+            else:
+                good_group_name_cond = 0
             if 'Единица' in head:
-                unit = 1
+                unit_cond = 1
+            else:
+                unit_cond = 0
             if 'Количество' in head:
-                quantity = 1
+                quantity_cond = 1
+            else:
+                quantity_cond = 0
             if 'Ценазаедизм' in head:
-                price = 1
+                price_cond = 1
+            else:
+                price_cond = 0
             if 'Стоимость' in head:
-                cost = 1
+                cost_cond = 1
+            else:
+                cost_cond = 0
             for ii in nodes:
                 single_node = lxml.html.fromstring(lxml.etree.tostring(ii, pretty_print=False))
                 string = single_node.xpath('//td/text()')
                 if len(string) > 2:
-                    if code:
+                    if code_cond:
                         code = re.sub(r'[^.0-9]', '', string[1])
-                    if good_group_name:
-                        good_group_name = re.sub(r'(\n)|(\s\s)', '', string[1+code])
-                    if unit:
-                        unit = re.sub(r'(\n)|(\s\s)', '', string[1+code+good_group_name])
-                    if quantity:
-                        quantity = float(re.sub(r'[^,0-9]', '', string[1+code+good_group_name+unit])
+                    if good_group_name_cond:
+                        good_group_name = re.sub(r'(\n)|(\s\s)', '', string[1+code_cond])
+                    if unit_cond:
+                        unit = re.sub(r'(\n)|(\s\s)', '', string[1+code_cond+good_group_name_cond])
+                    if quantity_cond:
+                        quantity = float(re.sub(r'[^,0-9]', '', string[1+code_cond+good_group_name_cond+unit_cond])
                                          .translate(str.maketrans(',', '.')))
-                    if price:
-                        price = float(re.sub(r'[^,0-9]', '', string[2+code+good_group_name+unit+quantity])
+                    if price_cond:
+                        price = float(re.sub(r'[^,0-9]', '', string[2+code_cond+good_group_name_cond+unit_cond+
+                                                                    quantity_cond])
                                       .translate(str.maketrans(',', '.')))
-                    if cost:
-                        cost = float(re.sub(r'[^,0-9]', '', string[2+code+good_group_name+unit+quantity+cost])
+                    if cost_cond:
+                        cost = float(re.sub(r'[^,0-9]', '', string[2+code_cond+good_group_name_cond+unit_cond+
+                                                                   quantity_cond+cost_cond])
                                      .translate(str.maketrans(',', '.')))
                 else:
                     result.append([place, code, re.sub(r'(\n)|(\s\s)', '', string[1]),
@@ -287,7 +306,7 @@ if __name__ == '__main__':
     logger = logging.getLogger("root")
     logger.info("program started")
     cache = load()
-    list_of_tenders = zakupki(1, logger.getChild('get_links'), cache[0], cache[1], pages=1)
+    list_of_tenders = zakupki(1, logger.getChild('get_links'), cache[0], cache[1])
     logger.info('got links')
     conn = sqlite3.connect('collection.db')
     logger.debug('db is opened')
