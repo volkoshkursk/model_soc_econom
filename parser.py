@@ -116,7 +116,7 @@ def more_info(link, ministry, real_price, log):
     if response.status_code == 200:
         tree = lxml.html.fromstring(response.text)
     else:
-        log.error('status code: ' + str(response.status_code))
+        log.warning('status code: ' + str(response.status_code))
         options = Options()
         options.headless = True
         driver = webdriver.Firefox(options=options)
@@ -132,6 +132,7 @@ def more_info(link, ministry, real_price, log):
         finally:
             driver.close()
     if tree is not None:
+        test = response.text
         place = tree.xpath('//td[text()="Место нахождения"]/../td/text()')[1].split(',')[2][:]
         cond = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/div/@id')
         if cond[len(cond) - 1][0:22] == 'purchaseObjectTruTable':  # для обычных закупок
@@ -173,19 +174,20 @@ def more_info(link, ministry, real_price, log):
                     if code_cond:
                         code = re.sub(r'[^.0-9]', '', string[1])
                     if good_group_name_cond:
-                        good_group_name = re.sub(r'(\n)|(\s\s)', '', string[1+code_cond])
+                        good_group_name = re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond])
                     if unit_cond:
-                        unit = re.sub(r'(\n)|(\s\s)', '', string[1+code_cond+good_group_name_cond])
+                        unit = re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond + good_group_name_cond])
                     if quantity_cond:
-                        quantity = float(re.sub(r'[^,0-9]', '', string[1+code_cond+good_group_name_cond+unit_cond])
-                                         .translate(str.maketrans(',', '.')))
+                        quantity = float(
+                            re.sub(r'[^,0-9]', '', string[1 + code_cond + good_group_name_cond + unit_cond])
+                            .translate(str.maketrans(',', '.')))
                     if price_cond:
-                        price = float(re.sub(r'[^,0-9]', '', string[2+code_cond+good_group_name_cond+unit_cond+
+                        price = float(re.sub(r'[^,0-9]', '', string[2 + code_cond + good_group_name_cond + unit_cond +
                                                                     quantity_cond])
                                       .translate(str.maketrans(',', '.')))
                     if cost_cond:
-                        cost = float(re.sub(r'[^,0-9]', '', string[2+code_cond+good_group_name_cond+unit_cond+
-                                                                   quantity_cond+cost_cond])
+                        cost = float(re.sub(r'[^,0-9]', '', string[2 + code_cond + good_group_name_cond + unit_cond +
+                                                                   quantity_cond + cost_cond])
                                      .translate(str.maketrans(',', '.')))
                 else:
                     result.append([place, code, re.sub(r'(\n)|(\s\s)', '', string[1]),
@@ -321,12 +323,16 @@ if __name__ == '__main__':
     command = ''
     logger.debug('total link: ' + str(len(list_of_tenders)))
     for i in range(len(list_of_tenders)):
+        info = []
         if len(list_of_tenders[i][2]) > 0 and list_of_tenders[i][2][0] not in saved[0]:
-            info = more_info(list_of_tenders[i][2], list_of_tenders[i][1], list_of_tenders[i][0],
-                             logger.getChild('more_info'))
+            try:
+                info = more_info(list_of_tenders[i][2], list_of_tenders[i][1], list_of_tenders[i][0],
+                                 logger.getChild('more_info'))
+            except Exception as e:
+                logger.error(e)
             for record in info:
-                command += "INSERT into inp values (" + "'" + str(record[0]) + "','" + str(record[1]) + "','" +\
-                           str(record[2]) + "','" + str(record[3]) + "','" + str(record[4]) + "'," + str(record[5]) +\
+                command += "INSERT into inp values (" + "'" + str(record[0]) + "','" + str(record[1]) + "','" + \
+                           str(record[2]) + "','" + str(record[3]) + "','" + str(record[4]) + "'," + str(record[5]) + \
                            ',' + str(record[6]) + ',' + str(record[7]) + ",'" + str(record[8]) + "'," + str(record[9]) \
                            + ",'" + str(record[10]) + "'," + str(record[11]) + ",'" + str(record[12]) + "'); \n"
             del info
@@ -337,10 +343,11 @@ if __name__ == '__main__':
             logger.debug('info found in db')
         if i % 10 == 0 and i != 0:
             cursor.execute(command)
-            logger.info('sent to db')
-        if i % 100 == 0 and i != 0:
             conn.commit()
-            logger.info('commit')
+            logger.info('sent to db')
+        # if i % 100 == 0 and i != 0:
+        #     conn.commit()
+        #     logger.info('commit')
 
     conn.close()
     logger.info(':-)')
