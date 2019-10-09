@@ -116,7 +116,7 @@ def more_info(link, ministry, real_price, log):
     if response.status_code == 200:
         tree = lxml.html.fromstring(response.text)
     else:
-        log.error('status code: ' + str(response.status_code))
+        log.warning('status code: ' + str(response.status_code))
         options = Options()
         options.headless = True
         driver = webdriver.Firefox(options=options)
@@ -132,6 +132,7 @@ def more_info(link, ministry, real_price, log):
         finally:
             driver.close()
     if tree is not None:
+        test = response.text
         place = tree.xpath('//td[text()="Место нахождения"]/../td/text()')[1].split(',')[2][:]
         cond = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/div/@id')
         if cond[len(cond) - 1][0:22] == 'purchaseObjectTruTable':  # для обычных закупок
@@ -337,10 +338,11 @@ if __name__ == '__main__':
             logger.debug('info found in db')
         if i % 10 == 0 and i != 0:
             cursor.execute(command)
-            logger.info('sent to db')
-        if i % 100 == 0 and i != 0:
             conn.commit()
-            logger.info('commit')
+            logger.info('sent to db')
+        # if i % 100 == 0 and i != 0:
+        #     conn.commit()
+        #     logger.info('commit')
 
     conn.close()
     logger.info(':-)')
