@@ -135,6 +135,7 @@ def more_info(link, ministry, real_price, log):
         finally:
             driver.close()
     if tree is not None:
+        test = response.text
         place = tree.xpath('//td[text()="Место нахождения"]/../td/text()')[1].split(',')[2][:]
         cond = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/div/@id')
         if cond[len(cond) - 1][0:22] == 'purchaseObjectTruTable':  # для обычных закупок
