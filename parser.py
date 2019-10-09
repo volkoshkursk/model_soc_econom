@@ -86,8 +86,8 @@ def zakupki(num, log, address_1, address_2, pages=None):
                     address_1, address_2 = save(driver.current_url)
                     log.info('address saved')
                     del address_update
-                except Exception as e:
-                    logger.error(e)
+                except Exception as exc:
+                    logger.error(exc)
                 finally:
                     driver.close()
             pages = int(pages[len(pages) - 1])
@@ -119,7 +119,10 @@ def more_info(link, ministry, real_price, log):
         log.warning('status code: ' + str(response.status_code))
         options = Options()
         options.headless = True
-        driver = webdriver.Firefox(options=options)
+        try:
+            driver = webdriver.Firefox(options=options)
+        except Exception:
+            driver = webdriver.Firefox()
         log.info('try to use firefox')
         try:
             driver.get('http://zakupki.gov.ru' + link)
@@ -127,12 +130,11 @@ def more_info(link, ministry, real_price, log):
                 log.error('site unavailable')
             else:
                 tree = lxml.html.fromstring(driver.page_source)
-        except Exception as e:
-            log.error(e)
+        except Exception as exc:
+            log.error(exc)
         finally:
             driver.close()
     if tree is not None:
-        test = response.text
         place = tree.xpath('//td[text()="Место нахождения"]/../td/text()')[1].split(',')[2][:]
         cond = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/div/@id')
         if cond[len(cond) - 1][0:22] == 'purchaseObjectTruTable':  # для обычных закупок
@@ -172,22 +174,34 @@ def more_info(link, ministry, real_price, log):
                 string = single_node.xpath('//td/text()')
                 if len(string) > 2:
                     if code_cond:
-                        code = re.sub(r'[^.0-9]', '', string[1])
+                        code = re.sub(r'[^-.0-9]', '', string[1])
+                        if code == '':
+                            code = re.sub(r'[^-.0-9]', '', single_node.xpath('//td[@class="alignLeft"]/a/text()')[0])
                     if good_group_name_cond:
                         good_group_name = re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond])
+                        if good_group_name == '':
+                            good_group_name = re.sub(r'(\n)|(\s\s)', '',
+                                                     string[len(
+                                                         string) - cost_cond - 2 - price_cond - quantity_cond -
+                                                            unit_cond])
                     if unit_cond:
                         unit = re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond + good_group_name_cond])
+                        if unit == '' or unit == good_group_name:
+                            unit = re.sub(r'(\n)|(\s\s)', '',
+                                          string[len(string) - cost_cond - 2 - price_cond - quantity_cond])
                     if quantity_cond:
-                        quantity = float(
-                            re.sub(r'[^,0-9]', '', string[1 + code_cond + good_group_name_cond + unit_cond])
-                            .translate(str.maketrans(',', '.')))
+                        quantity = re.sub(r'[^,0-9]', '', string[1 + code_cond + good_group_name_cond + unit_cond]). \
+                            translate(str.maketrans(',', '.'))
+                        if quantity == '':
+                            quantity = re.sub(r'[^,0-9]', '',
+                                              string[len(string) - cost_cond - 2 - price_cond]).translate(
+                                str.maketrans(',', '.'))
+                        quantity = float(quantity)
                     if price_cond:
-                        price = float(re.sub(r'[^,0-9]', '', string[2 + code_cond + good_group_name_cond + unit_cond +
-                                                                    quantity_cond])
+                        price = float(re.sub(r'[^,0-9]', '', string[len(string) - 1 - cost_cond])
                                       .translate(str.maketrans(',', '.')))
                     if cost_cond:
-                        cost = float(re.sub(r'[^,0-9]', '', string[2 + code_cond + good_group_name_cond + unit_cond +
-                                                                   quantity_cond + cost_cond])
+                        cost = float(re.sub(r'[^,0-9]', '', string[len(string) - 1])
                                      .translate(str.maketrans(',', '.')))
                 else:
                     result.append([place, code, re.sub(r'(\n)|(\s\s)', '', string[1]),
@@ -323,8 +337,9 @@ if __name__ == '__main__':
     command = ''
     logger.debug('total link: ' + str(len(list_of_tenders)))
     for i in range(len(list_of_tenders)):
-        info = []
+        print(str(i) + '/' + str(len(list_of_tenders)))
         if len(list_of_tenders[i][2]) > 0 and list_of_tenders[i][2][0] not in saved[0]:
+            info = []
             try:
                 info = more_info(list_of_tenders[i][2], list_of_tenders[i][1], list_of_tenders[i][0],
                                  logger.getChild('more_info'))
