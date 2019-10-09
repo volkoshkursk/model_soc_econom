@@ -135,7 +135,6 @@ def more_info(link, ministry, real_price, log):
         finally:
             driver.close()
     if tree is not None:
-        test = response.text
         place = tree.xpath('//td[text()="Место нахождения"]/../td/text()')[1].split(',')[2][:]
         cond = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/div/@id')
         if cond[len(cond) - 1][0:22] == 'purchaseObjectTruTable':  # для обычных закупок
@@ -145,7 +144,7 @@ def more_info(link, ministry, real_price, log):
             head = set(map(lambda x: re.sub(r'[^A-Za-zА-Яа-я]', '', x), head))
             # в таблице могут быть не все окна
             result = []
-            code, good_group_name, unit, quantity, price, cost = None, None, None, None, None, None
+            code, good_group_name, unit, quantity, price, cost = 'NULL', 'NULL', 'NULL', 'NULL', 'NULL', 'NULL'
             if 'Кодпозиции' in head:
                 code_cond = 1
             else:
@@ -226,17 +225,18 @@ def more_info(link, ministry, real_price, log):
 
                     if amount == result[ii][5]:
                         for j in range(len(temp)):
-                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), temp2[j] / amount]
+                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]).translate(str.maketrans('"', "»")),
+                                       temp2[j] / amount]
                     else:
                         for j in range(len(temp)):
-                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), None]
+                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]).translate(str.maketrans('"', "»")), None]
                     result[ii].append(temp)
                     result[ii].append(total)
                     result[ii].append(link)
                     del temp, temp2, amount
             else:
                 for ii in range(len(result)):
-                    result[ii].append(None)
+                    result[ii].append('NULL')
                     result[ii].append(total)
                     result[ii].append(link)
             log.debug('record loaded')
@@ -247,31 +247,42 @@ def more_info(link, ministry, real_price, log):
             head = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[@class="tdHead"]/td/text()')
             head = set(map(lambda x: re.sub(r'[^A-Za-zА-Яа-я]', '', x), head))
             result = []
-            code, good_name, unit, quantity, price, cost = 'MED', None, None, None, None, None
+            code, good_name, unit, quantity, price, cost = 'MED', 'NULL', 'NULL', 'NULL', 'NULL', 'NULL'
             if 'Международноенепатентованное' in head:
-                good_name = True
+                good_name_cond = 1
+            else:
+                good_name_cond = 0
             if 'Сведенияолекарственныхформах' in head:
-                unit = True
+                unit_cond = 1
+            else:
+                unit_cond = 0
             if 'Количество' in head:
-                quantity = True
+                quantity_cond = 1
+            else:
+                quantity_cond = 0
             if 'Ценазаедизм' in head:
-                price = True
+                price_cond = 1
+            else:
+                price_cond = 0
             if 'Стоимость' in head:
-                cost = True
+                cost_cond = 1
+            else:
+                cost_cond = 0
             for ii in nodes:
+                # если в режиме мед таблицы будет падать по причине смены вёрстки - перепишу
                 single_node = lxml.html.fromstring(lxml.etree.tostring(ii, pretty_print=False))
                 if 'delimTr' in single_node.xpath('//td/@class'):
                     continue
                 string = single_node.xpath('//td/text()')
-                if good_name:
+                if good_name_cond:
                     good_name = re.sub(r'(\n)|(\s\s)', '', string[1])
-                if unit:
+                if unit_cond:
                     unit = re.sub(r'(\n)|(\s\s)', '', string[4])
-                if quantity:
+                if quantity_cond:
                     quantity = float(re.sub(r'[^,0-9]', '', string[5]).translate(str.maketrans(',', '.')))
-                if price:
+                if price_cond:
                     price = float(re.sub(r'[^,0-9]', '', string[6]).translate(str.maketrans(',', '.')))
-                if cost:
+                if cost_cond:
                     cost = float(re.sub(r'[^,0-9]', '', string[7]).translate(str.maketrans(',', '.')))
                 result.append([place, code, good_name, None, unit, quantity, price, cost, ministry, real_price])
             nodes = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]//tr[@class="toggleTr displayNone"]')
@@ -292,17 +303,18 @@ def more_info(link, ministry, real_price, log):
 
                     if amount == result[ii][5]:
                         for j in range(len(temp)):
-                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), temp2[j] / amount]
+                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]).translate(str.maketrans('"', "»")),
+                                       temp2[j] / amount]
                     else:
                         for j in range(len(temp)):
-                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]), None]
+                            temp[j] = [re.sub(r'(\n)|(\s\s)', '', temp[j]).translate(str.maketrans('"', "»")), None]
                     result[ii].append(temp)
                     result[ii].append(total)
                     result[ii].append(link)
                     del temp, temp2, amount
             else:
                 for ii in range(len(result)):
-                    result[ii].append(None)
+                    result[ii].append('NULL')
                     result[ii].append(total)
                     result[ii].append(link)
             temp = tree.xpath('//h2[contains(text(),"Сведения о наименовании")]/../div//td/text()')[3::4]
@@ -326,7 +338,7 @@ if __name__ == '__main__':
     list_of_tenders = zakupki(1, logger.getChild('get_links'), cache[0], cache[1])
     logger.info('got links')
     conn = sqlite3.connect('collection.db')
-    logger.debug('db is opened')
+    logger.info('db is opened')
     cursor = conn.cursor()
     cursor.execute("select link,ministry,real_price from inp")
     from_db = cursor.fetchall()
@@ -336,7 +348,7 @@ if __name__ == '__main__':
         saved[1].add((i[1], i[2]))
     logger.debug('data is ' + str(saved))
     command = ''
-    logger.debug('total link: ' + str(len(list_of_tenders)))
+    logger.info('total link: ' + str(len(list_of_tenders)))
     for i in range(len(list_of_tenders)):
         print(str(i) + '/' + str(len(list_of_tenders)))
         if len(list_of_tenders[i][2]) > 0 and list_of_tenders[i][2][0] not in saved[0]:
@@ -347,23 +359,25 @@ if __name__ == '__main__':
             except Exception as e:
                 logger.error(e)
             for record in info:
-                command += "INSERT into inp values (" + "'" + str(record[0]) + "','" + str(record[1]) + "','" + \
+                command = "INSERT into inp values (" + "'" + str(record[0]) + "','" + str(record[1]) + "','" + \
                            str(record[2]) + "','" + str(record[3]) + "','" + str(record[4]) + "'," + str(record[5]) + \
                            ',' + str(record[6]) + ',' + str(record[7]) + ",'" + str(record[8]) + "'," + str(record[9]) \
-                           + ",'" + str(record[10]) + "'," + str(record[11]) + ",'" + str(record[12]) + "'); \n"
+                           + ',"' + str(record[10]) + '",' + str(record[11]) + ",'" + str(record[12]) + "'); \n"
+                logger.debug(command)
+                cursor.execute(command)
+                logger.info('sent to db')
             del info
         elif (list_of_tenders[i][1], list_of_tenders[i][0]) not in saved[1] and len(list_of_tenders[i][2]) == 0:
-            command += "INSERT into inp values (" + "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,'" + \
-                       str(list_of_tenders[i][2]) + "'," + str(list_of_tenders[i][1]) + ", NULL, NULL, NULL); \n"
+            command = "INSERT into inp values (" + "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,'" + \
+                       str(list_of_tenders[i][1]) + "'," + str(list_of_tenders[i][0]) + ", NULL, NULL, NULL); \n"
+            logger.debug(command)
+            cursor.execute(command)
+            logger.info('sent to db')
         else:
             logger.debug('info found in db')
         if i % 10 == 0 and i != 0:
-            cursor.execute(command)
             conn.commit()
-            logger.info('sent to db')
-        # if i % 100 == 0 and i != 0:
-        #     conn.commit()
-        #     logger.info('commit')
+            logger.info('commited')
 
     conn.close()
     logger.info(':-)')
