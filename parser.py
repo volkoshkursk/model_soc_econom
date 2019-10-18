@@ -172,38 +172,42 @@ def more_info(link, ministry, real_price, log):
             for ii in nodes:
                 single_node = lxml.html.fromstring(lxml.etree.tostring(ii, pretty_print=False))
                 string = single_node.xpath('//td/text()')
-                if len(string) > 2:
+                if len(string) > 3:
                     if code_cond:
                         code = re.sub(r'[^-.0-9]', '', string[1])
                         if code == '':
                             code = re.sub(r'[^-.0-9]', '', single_node.xpath('//td[@class="alignLeft"]/a/text()')[0])
+                        if code == '':
+                            code = 'NULL'
                     if good_group_name_cond:
                         good_group_name = re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond])
                         if good_group_name == '':
                             good_group_name = re.sub(r'(\n)|(\s\s)', '',
-                                                     string[len(
-                                                         string) - cost_cond - 2 - price_cond - quantity_cond -
-                                                            unit_cond])
+                                                     string[len(string)-cost_cond-2-price_cond-quantity_cond-unit_cond])
+                        if good_group_name == '':
+                            good_group_name = 'NULL'
                     if unit_cond:
-                        unit = re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond + good_group_name_cond])
+                        unit = re.sub(r'(\n)|(\s\s)', '', string[len(string)-cost_cond-2-price_cond-quantity_cond])
+                        # unit = re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond + good_group_name_cond])
+                        # if unit == '' or unit == good_group_name:
+                        #     unit = re.sub(r'(\n)|(\s\s)', '', string[len(string)-
+                        #                                              cost_cond-2-price_cond-quantity_cond])
                         if unit == '' or unit == good_group_name:
-                            unit = re.sub(r'(\n)|(\s\s)', '',
-                                          string[len(string) - cost_cond - 2 - price_cond - quantity_cond])
+                            unit = 'NULL'
                     if quantity_cond:
                         quantity = re.sub(r'[^,0-9]', '', string[1 + code_cond + good_group_name_cond + unit_cond]). \
                             translate(str.maketrans(',', '.'))
                         if quantity == '':
-                            quantity = re.sub(r'[^,0-9]', '',
-                                              string[len(string) - cost_cond - 2 - price_cond]).translate(
-                                str.maketrans(',', '.'))
-                        quantity = float(quantity)
+                            quantity = re.sub(r'[^,0-9]', '', string[len(string)-cost_cond-2-price_cond]).translate(
+                                        str.maketrans(',', '.'))
+                            quantity = float(quantity)
                     if price_cond:
-                        price = float(re.sub(r'[^,0-9]', '', string[len(string) - 1 - cost_cond])
-                                      .translate(str.maketrans(',', '.')))
+                        price = float(re.sub(r'[^,0-9]', '', string[len(string)-1-cost_cond])
+                                        .translate(str.maketrans(',', '.')))
                     if cost_cond:
-                        cost = float(re.sub(r'[^,0-9]', '', string[len(string) - 1])
+                        cost = float(re.sub(r'[^,0-9]', '', string[len(string)-1])
                                      .translate(str.maketrans(',', '.')))
-                else:
+                elif len(string) > 0 and 'Наименованиетовараработыуслуги' == re.sub(r'[^A-Za-zА-Яа-я]', '', string[0]):
                     result.append([place, code, re.sub(r'(\n)|(\s\s)', '', string[1]),
                                    good_group_name, unit, quantity, price, cost, ministry, real_price])
             total = float(re.sub(r'[^,0-9]', '', tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/'
