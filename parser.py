@@ -126,14 +126,25 @@ def more_info(link, ministry, real_price, log):
             log.error('site unavailable')
         else:
             trees = [lxml.html.fromstring(driver.page_source)]
-            #
+            # если таблица многостранична...
             if trees[0].xpath('//div[contains(@class,"addingTbl col6Tbl")]//'
                               'div[@class="topPaginationBlock margBtm20"]'):
-                # todo проверить
-                while True:
+                # ... то узнаём кол-во страниц...
+                page_num = trees[0].xpath('//div[contains(@class,"addingTbl col6Tbl")]//'
+                                          'div[@class="topPaginationBlock margBtm20"]/'
+                                          '/ul[@class="pages"]/li//text()')
+                for j in range(len(page_num)):
+                    page_num[j] = re.sub(r'[^0-9]', '', page_num[j])
+                    if page_num[j] == '':
+                        page_num[j] = 0
+                    else:
+                        page_num[j] = int(page_num[j])
+                page_num = max(page_num)
+                # ... и обходим их по циклу
+                for j in range(page_num - 1):
                     driver.find_element_by_xpath('//div[contains(@class,"addingTbl col6Tbl")]//'
                                                  'div[@class="topPaginationBlock margBtm20"]/'
-                                                 '/ul[@class="pages"/a]').click()
+                                                 '/ul[@class="pages"]/a').click()
                     trees.append(lxml.html.fromstring(driver.page_source))
     except Exception as exc:
         log.error(exc)
