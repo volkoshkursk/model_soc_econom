@@ -7,6 +7,7 @@ import lxml.etree
 import requests
 import re
 import sqlite3
+import argparse
 
 import logging.config
 
@@ -52,7 +53,8 @@ def zakupki(num, log, address_1, address_2, pages=None):
     :return: лист названий организаций, цен закупки, ссылок на аукционы
     """
     log.info('ask for ' + str(num) + ' page')
-    print(num)
+    print(num, end='/')
+    print(pages)
     response = requests.get(address_1 + str(num) + address_2)
     address_update = False
     result = []
@@ -181,8 +183,13 @@ def more_info(link, ministry, real_price, log):
     #     finally:
     #         driver.close()
     for tree in trees:
+        logger.debug('new page in table')
         if tree is not None:
-            place = tree.xpath('//td[text()="Место нахождения"]/../td/text()')[1].split(',')[2][:]
+            place = tree.xpath('//td[text()="Место нахождения"]/../td/text()')[1].split(',')
+            if re.sub(r'[^A-Za-zА-Яа-я]', '', place[0])[0] == 'Р':
+                place = re.sub(r'(\n)|(\s\s)', '', place[2][:])
+            else:
+                place = re.sub(r'(\n)|(\s\s)', '', place[0][:])
             cond = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/div/@id')
             if cond[len(cond) - 1][0:22] == 'purchaseObjectTruTable':  # для обычных закупок
                 del cond
@@ -225,24 +232,19 @@ def more_info(link, ministry, real_price, log):
                             if code == '':
                                 code = re.sub(r'[^-.0-9]', '', single_node.xpath('//td[@class="alignLeft"]/'
                                                                                  'a/text()')[0])
-                            if code == '':
-                                code = 'NULL'
                         if good_group_name_cond:
-                            good_group_name = re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond])
+                            good_group_name = re.sub(r"'", "»", re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond]))
                             if good_group_name == '':
-                                good_group_name = re.sub(r'(\n)|(\s\s)', '',
+                                good_group_name = re.sub(r"'", "»", re.sub(r'(\n)|(\s\s)', '',
                                                          string[len(string)-cost_cond-2-price_cond-quantity_cond -
-                                                                unit_cond])
-                            if good_group_name == '':
-                                good_group_name = 'NULL'
+                                                                unit_cond]))
                         if unit_cond:
-                            unit = re.sub(r'(\n)|(\s\s)', '', string[len(string)-cost_cond-2-price_cond-quantity_cond])
+                            unit = re.sub(r"'", "»", re.sub(r'(\n)|(\s\s)', '',
+                                                            string[len(string)-cost_cond-2-price_cond-quantity_cond]))
                             # unit = re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond + good_group_name_cond])
                             # if unit == '' or unit == good_group_name:
                             #     unit = re.sub(r'(\n)|(\s\s)', '', string[len(string)-
                             #                                              cost_cond-2-price_cond-quantity_cond])
-                            if unit == '' or unit == good_group_name:
-                                unit = 'NULL'
                         if quantity_cond:
                             quantity = re.sub(r'[^,0-9]', '', string[1 + code_cond + good_group_name_cond +
                                                                      unit_cond]).translate(str.maketrans(',', '.'))
@@ -258,7 +260,7 @@ def more_info(link, ministry, real_price, log):
                                          .translate(str.maketrans(',', '.')))
                     elif len(string) > 0 and 'Наименованиетовараработыуслуги' == re.sub(r'[^A-Za-zА-Яа-я]', '',
                                                                                         string[0]):
-                        result.append([place, code, re.sub(r'(\n)|(\s\s)', '', string[1]),
+                        result.append([place, code, re.sub(r"'", "'", re.sub(r'(\n)|(\s\s)', '', string[1])),
                                        good_group_name, unit, quantity, price, cost, ministry, real_price])
                 total = float(re.sub(r'[^,0-9]', '', tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/'
                                                                 '/tr[@class="tdTotal"]/td[@class="alignCenter"]/'
@@ -330,9 +332,9 @@ def more_info(link, ministry, real_price, log):
                         continue
                     string = single_node.xpath('//td/text()')
                     if good_name_cond:
-                        good_name = re.sub(r'(\n)|(\s\s)', '', string[1])
+                        good_name = re.sub(r"'", "»", re.sub(r'(\n)|(\s\s)', '', string[1]))
                     if unit_cond:
-                        unit = re.sub(r'(\n)|(\s\s)', '', string[4])
+                        unit = re.sub(r"'", "»", re.sub(r'(\n)|(\s\s)', '', string[4]))
                     if quantity_cond:
                         quantity = float(re.sub(r'[^,0-9]', '', string[5]).translate(str.maketrans(',', '.')))
                     if price_cond:
@@ -386,12 +388,34 @@ def more_info(link, ministry, real_price, log):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='parser for zakupki.gov.ru')
+    parser.add_argument(
+        '-f',
+        '--filename',
+        type=str,
+        default=None,
+        help='filename for text file with list of links (also needed to be in file real price and ministry name) '
+             'for asking only these pages (default: False)'
+    )
+    arg = parser.parse_args()
     logging.config.fileConfig('log_config')
     logger = logging.getLogger("root")
     logger.info("program started")
-    cache = load()
-    list_of_tenders = zakupki(1, logger.getChild('get_links'), cache[0], cache[1])
-    logger.info('got links')
+    if arg.filename is None:
+        cache = load()
+        list_of_tenders = zakupki(1, logger.getChild('get_links'), cache[0], cache[1])
+        logger.info('got links')
+    else:
+        logger.info("work with file")
+        f = open(arg.filename)
+        list_of_tenders = []
+        for line in f:
+            temp = line.split('&')
+            temp[0] = [temp[0]]
+            temp.reverse()
+            list_of_tenders.append(temp)
+            del temp
+        f.close()
     conn = sqlite3.connect('collection.db')
     logger.info('db is opened')
     cursor = conn.cursor()
@@ -432,7 +456,7 @@ if __name__ == '__main__':
             logger.debug('info found in db')
         if i % 10 == 0 and i != 0:
             conn.commit()
-            logger.info('commited')
+            logger.info('committed')
 
     conn.close()
     logger.info(':-)')
