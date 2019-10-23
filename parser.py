@@ -7,6 +7,7 @@ import lxml.etree
 import requests
 import re
 import sqlite3
+import mysql.connector
 import argparse
 
 import logging.config
@@ -152,44 +153,14 @@ def more_info(link, ministry, real_price, log):
         log.error(exc)
     finally:
         driver.close()
-    # response = requests.get('http://zakupki.gov.ru' + link)
-    # if response.status_code == 200:
-    #     trees = [lxml.html.fromstring(response.text)]
-    # else:
-    #     log.warning('status code: ' + str(response.status_code))
-    #     options = Options()
-    #     options.headless = True
-    #     try:
-    #         driver = webdriver.Firefox(options=options)
-    #     except Exception:
-    #         driver = webdriver.Firefox()
-    #     log.info('try to use firefox')
-    #     try:
-    #         driver.get('http://zakupki.gov.ru' + link)
-    #         if 'Сайт временно недоступен' in driver.title:
-    #             log.error('site unavailable')
-    #         else:
-    #             trees = [lxml.html.fromstring(driver.page_source)]
-    #             #
-    #             if trees[0].xpath('//div[contains(@class,"addingTbl col6Tbl")]//'
-    #                               'div[@class="topPaginationBlock margBtm20"]'):
-    #                 while True:
-    #                     driver.find_element_by_xpath('//div[contains(@class,"addingTbl col6Tbl")]//'
-    #                                                  'div[@class="topPaginationBlock margBtm20"]/'
-    #                                                  '/ul[@class="pages"/a]').click()
-    #                     trees.append(lxml.html.fromstring(driver.page_source))
-    #     except Exception as exc:
-    #         log.error(exc)
-    #     finally:
-    #         driver.close()
     for tree in trees:
         logger.debug('new page in table')
         if tree is not None:
             place = tree.xpath('//td[text()="Место нахождения"]/../td/text()')[1].split(',')
             if re.sub(r'[^A-Za-zА-Яа-я]', '', place[0])[0] == 'Р':
-                place = re.sub(r'(\n)|(\s\s)', '', place[2][:])
+                place = re.sub(r'(\n)|(\s\s)|[0-9]]', '', place[2][:])
             else:
-                place = re.sub(r'(\n)|(\s\s)', '', place[0][:])
+                place = re.sub(r'(\n)|(\s\s)|[0-9]', '', place[0][:])
             cond = tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/div/@id')
             if cond[len(cond) - 1][0:22] == 'purchaseObjectTruTable':  # для обычных закупок
                 del cond
@@ -241,10 +212,8 @@ def more_info(link, ministry, real_price, log):
                         if unit_cond:
                             unit = re.sub(r"'", "»", re.sub(r'(\n)|(\s\s)', '',
                                                             string[len(string)-cost_cond-2-price_cond-quantity_cond]))
-                            # unit = re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond + good_group_name_cond])
-                            # if unit == '' or unit == good_group_name:
-                            #     unit = re.sub(r'(\n)|(\s\s)', '', string[len(string)-
-                            #                                              cost_cond-2-price_cond-quantity_cond])
+                            if unit == good_group_name:
+                                unit = re.sub(r'(\n)|(\s\s)', '', string[1 + code_cond + good_group_name_cond])
                         if quantity_cond:
                             quantity = re.sub(r'[^,0-9]', '', string[1 + code_cond + good_group_name_cond +
                                                                      unit_cond]).translate(str.maketrans(',', '.'))
@@ -395,7 +364,23 @@ if __name__ == '__main__':
         type=str,
         default=None,
         help='filename for text file with list of links (also needed to be in file real price and ministry name) '
-             'for asking only these pages (default: False)'
+             'for asking only these pages (default: None)'
+    )
+    parser.add_argument(
+        '-sl',
+        '--save_local',
+        action='store_const',
+        const=False,
+        default=True,
+        help='If is needed save into local db (collection.db) (default: False)'
+    )
+    parser.add_argument(
+        '-ll',
+        '--load_local',
+        action='store_const',
+        const=False,
+        default=True,
+        help='If is needed load from local db (collection.db) (default: False)'
     )
     arg = parser.parse_args()
     logging.config.fileConfig('log_config')
@@ -411,22 +396,40 @@ if __name__ == '__main__':
         list_of_tenders = []
         for line in f:
             temp = line.split('&')
-            temp[0] = [temp[0]]
+            if temp[0] != 'None':
+                temp[0] = [temp[0]]
+            else:
+                temp[0] = []
+            temp[2] = float(temp[2][:-1])
             temp.reverse()
             list_of_tenders.append(temp)
             del temp
         f.close()
-    conn = sqlite3.connect('collection.db')
+    if arg.ll:
+        conn = sqlite3.connect('collection.db')
+        logger.info('local in')
+    else:
+        conn = mysql.connector.connect(user='user', password='goszakupki', host='104.248.38.165', database='collection')
+        logger.info('net in')
     logger.info('db is opened')
     cursor = conn.cursor()
     cursor.execute("select link,ministry,real_price from inp")
     from_db = cursor.fetchall()
+    cursor.close()
+    conn.close()
     saved = [set(), set()]  # [set of links, set of tuples (ministry + real_price)]
     for i in from_db:
         saved[0].add(i[0])
         saved[1].add((i[1], i[2]))
     logger.debug('data is ' + str(saved))
     command = ''
+    if arg.sl:
+        conn = sqlite3.connect('collection.db')
+        logger.info('local out')
+    else:
+        conn = mysql.connector.connect(user='user', password='goszakupki', host='104.248.38.165', database='collection')
+        logger.info('net out')
+    cursor = conn.cursor()
     logger.info('total link: ' + str(len(list_of_tenders)))
     for i in range(len(list_of_tenders)):
         print(str(i) + '/' + str(len(list_of_tenders)))
