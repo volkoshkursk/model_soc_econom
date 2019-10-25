@@ -370,16 +370,16 @@ if __name__ == '__main__':
         '-sl',
         '--save_local',
         action='store_const',
-        const=False,
-        default=True,
+        const=True,
+        default=False,
         help='If is needed save into local db (collection.db) (default: False)'
     )
     parser.add_argument(
         '-ll',
         '--load_local',
         action='store_const',
-        const=False,
-        default=True,
+        const=True,
+        default=False,
         help='If is needed load from local db (collection.db) (default: False)'
     )
     arg = parser.parse_args()
@@ -405,7 +405,7 @@ if __name__ == '__main__':
             list_of_tenders.append(temp)
             del temp
         f.close()
-    if arg.ll:
+    if arg.load_local:
         conn = sqlite3.connect('collection.db')
         logger.info('local in')
     else:
@@ -423,7 +423,7 @@ if __name__ == '__main__':
         saved[1].add((i[1], i[2]))
     logger.debug('data is ' + str(saved))
     command = ''
-    if arg.sl:
+    if arg.save_local:
         conn = sqlite3.connect('collection.db')
         logger.info('local out')
     else:
