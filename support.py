@@ -41,7 +41,7 @@ def save(conn_out, data):
                   + ',"' + re.sub(r'None', 'NULL', str(obj[10])) + '",' + re.sub(r'None', 'NULL', str(obj[11])) \
                   + ",'" + re.sub(r'None', 'NULL', str(obj[12])) + "');"
         cursor.execute(command)
-        conn_out.commit()
+    conn_out.commit()
     cursor.close()
     conn_out.close()
 
@@ -90,13 +90,24 @@ if __name__ == '__main__':
     arg = parser.parse_args()
     logger.info("args: " + str(arg.back) + str(arg.filter) + str(arg.new) + str(arg.check))
     if arg.check:
+        f = open('history')
+        history = []
+        for lines in tqdm.tqdm(f):
+            history.append(tuple(map(lambda x: int(x), lines.split(','))))
+        f.close()
         conn = mysql.connector.connect(user='user', password='goszakupki', host='localhost', database='collection')
         base = load(conn)
         print('до: ', end=' ')
-        print(len(base))
-        base = set(base)
+        before = len(base)
+        print(before, end=' ')
+        print(before - history[len(history)-1][0])
+        after = len(set(base))
         print('после: ', end=' ')
-        print(len(base))
+        print(after, end=' ')
+        print(after - history[len(history)-1][1])
+        f = open('history', 'a')
+        f.write(str(before) + ',' + str(after) + '\n')
+        f.close()
     else:
         if arg.back:
             conn = mysql.connector.connect(user='user', password='goszakupki', host='localhost', database='collection')

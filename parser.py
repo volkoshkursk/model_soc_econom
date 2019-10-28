@@ -9,6 +9,7 @@ import re
 import sqlite3
 import mysql.connector
 import argparse
+import tqdm
 
 import logging.config
 
@@ -431,8 +432,8 @@ if __name__ == '__main__':
         logger.info('net out')
     cursor = conn.cursor()
     logger.info('total link: ' + str(len(list_of_tenders)))
-    for i in range(len(list_of_tenders)):
-        print(str(i) + '/' + str(len(list_of_tenders)))
+    for i in tqdm.trange(len(list_of_tenders)):
+        # print(str(i) + '/' + str(len(list_of_tenders)))
         if len(list_of_tenders[i][2]) > 0 and list_of_tenders[i][2][0] not in saved[0]:
             info = []
             try:
