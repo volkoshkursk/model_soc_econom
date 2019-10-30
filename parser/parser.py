@@ -230,7 +230,7 @@ def more_info(link, ministry, real_price, log):
                                          .translate(str.maketrans(',', '.')))
                     elif len(string) > 0 and 'Наименованиетовараработыуслуги' == re.sub(r'[^A-Za-zА-Яа-я]', '',
                                                                                         string[0]):
-                        result.append([place, code, re.sub(r"'", "'", re.sub(r'(\n)|(\s\s)', '', string[1])),
+                        result.append([place, code, re.sub(r"'", '»', re.sub(r'(\n)|(\s\s)', '', string[1])),
                                        good_group_name, unit, quantity, price, cost, ministry, real_price])
                 total = float(re.sub(r'[^,0-9]', '', tree.xpath('//div[contains(@class,"addingTbl col6Tbl")]/'
                                                                 '/tr[@class="tdTotal"]/td[@class="alignCenter"]/'

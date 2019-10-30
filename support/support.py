@@ -72,6 +72,14 @@ if __name__ == '__main__':
         help='If is needed to remove duplicates (default: True)'
     )
     parser.add_argument(
+        '-cl',
+        '--clear',
+        action='store_const',
+        const=True,
+        default=False,
+        help='If is needed to remove duplicates (default: True)'
+    )
+    parser.add_argument(
         '-n',
         '--new',
         action='store_const',
@@ -109,12 +117,12 @@ if __name__ == '__main__':
         f.write(str(before) + ',' + str(after) + '\n')
         f.close()
     else:
-        if arg.back:
+        if arg.back or arg.clear:
             conn = mysql.connector.connect(user='user', password='goszakupki', host='localhost', database='collection')
             base = load(conn)
         else:
             base = load(sqlite3.connect('collection.db'))
-        if arg.filter:
+        if arg.filter or arg.clear:
             print('до: ', end=' ')
             print(len(base))
             base = set(base)
@@ -122,7 +130,7 @@ if __name__ == '__main__':
             print(len(base))
         else:
             print(len(base))
-        if arg.back:
+        if arg.back and not arg.clear:
             sqlite3.connect('collection.db')
             save(sqlite3.connect('collection.db'), base)
         else:
