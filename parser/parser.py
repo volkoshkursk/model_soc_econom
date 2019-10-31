@@ -10,6 +10,8 @@ import sqlite3
 import mysql.connector
 import argparse
 import tqdm
+import os
+import datetime
 
 import logging.config
 
@@ -463,4 +465,6 @@ if __name__ == '__main__':
             logger.info('committed')
 
     conn.close()
+    os.system('mysqldump -u user -pgoszakupki collection > /root/model_soc_econom/dumps/' +
+              datetime.datetime.now().strftime("%d-%b-%Y_(%H-%M-%S,%f)") + '.sql;')
     logger.info(':-)')

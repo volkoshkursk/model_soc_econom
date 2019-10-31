@@ -130,6 +130,9 @@ if __name__ == '__main__':
             print(len(base))
         else:
             print(len(base))
+        if arg.clear:
+            cursor = conn.cursor()
+            cursor.execute()
         if arg.back and not arg.clear:
             sqlite3.connect('collection.db')
             save(sqlite3.connect('collection.db'), base)
