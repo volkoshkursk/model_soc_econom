@@ -4,6 +4,7 @@ import re
 import tqdm
 import argparse
 import logging.config
+import datetime
 """
 Вспомогательный скрипт, необходимый для миграции и очистки баз
 """
@@ -29,7 +30,7 @@ def save(conn_out, data):
     :param conn_out: соединение с бд
     :param data: данные (формат вывод load, м б любой итерируемой сущностью)
     """
-    cursor = conn_out.cursor()
+    cursor_save = conn_out.cursor()
 
     for obj in tqdm.tqdm(data):
         command = "INSERT into inp values (" + "'" + re.sub(r'None', 'NULL', str(obj[0])) + "','" + \
@@ -40,9 +41,9 @@ def save(conn_out, data):
                   + ",'" + re.sub(r'None', 'NULL', str(obj[8])) + "'," + re.sub(r'None', 'NULL', str(obj[9])) \
                   + ',"' + re.sub(r'None', 'NULL', str(obj[10])) + '",' + re.sub(r'None', 'NULL', str(obj[11])) \
                   + ",'" + re.sub(r'None', 'NULL', str(obj[12])) + "');"
-        cursor.execute(command)
+        cursor_save.execute(command)
     conn_out.commit()
-    cursor.close()
+    cursor_save.close()
     conn_out.close()
 
 
@@ -101,7 +102,7 @@ if __name__ == '__main__':
         f = open('history')
         history = []
         for lines in tqdm.tqdm(f):
-            history.append(tuple(map(lambda x: int(x), lines.split(','))))
+            history.append(tuple(map(lambda x: int(x), lines.split(',')[:-1])))
         f.close()
         conn = mysql.connector.connect(user='user', password='goszakupki', host='localhost', database='collection')
         base = load(conn)
@@ -114,7 +115,7 @@ if __name__ == '__main__':
         print(after, end=' ')
         print(after - history[len(history)-1][1])
         f = open('history', 'a')
-        f.write(str(before) + ',' + str(after) + '\n')
+        f.write(str(before) + ',' + str(after) + ',' + datetime.datetime.now().strftime("%d-%b-%Y_%H-%M-%S-%f") + '\n')
         f.close()
     else:
         if arg.back or arg.clear:
@@ -131,8 +132,10 @@ if __name__ == '__main__':
         else:
             print(len(base))
         if arg.clear:
+            conn = mysql.connector.connect(user='user', password='goszakupki', host='localhost', database='collection')
             cursor = conn.cursor()
-            cursor.execute()
+            cursor.execute('DELETE FROM inp')
+            conn.commit()
         if arg.back and not arg.clear:
             sqlite3.connect('collection.db')
             save(sqlite3.connect('collection.db'), base)
