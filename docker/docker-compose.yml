@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+
+  script:
+    build: script_docker/.
+    working_dir: /
+    volumes:
+      - './script_docker/app:/app'
+    ports:
+      - '5000:5000'
+    
+  web:
+    build: web_docker/.
+    working_dir: /
+    depends_on:
+      - script
+    volumes:
+      - './web_docker/app:/app'   
+    ports:
+      - '8989:8989'
+
+  
