@@ -1,9 +1,11 @@
 import pandas as pd
+import matplotlib.pyplot as plt 
 import mysql.connector
 
 class MagicModel():
     def __init__(self):
         self.df = None
+        self.raw_df = None
     
     def fit(self):
         con =  mysql.connector.connect(user='user', password='goszakupki', host='104.248.38.165', database='collection')
@@ -11,7 +13,11 @@ class MagicModel():
         df = df.dropna()
         print(df.shape)
         df['hash'] = df[['good_name', 'unit']].apply(lambda x: hash(tuple(x)), axis=1)
+        self.raw_df = df
         price = df[['hash', 'price']].groupby('hash').agg(list)
+
+        print(price.head())
+        print(df.head())
         
         price['q1'] = df[['hash', 'price']].groupby('hash').quantile(1/4)['price']
         price['q3'] = df[['hash', 'price']].groupby('hash').quantile(3/4)['price']
@@ -27,5 +33,10 @@ class MagicModel():
             print('unknown value')
             return -1
         max_price = self.df.loc[hash_code, 'max']
+        #ax = self.raw_df.loc[self.raw_df['hash'] == hash_code, 'price'].hist()
+        ax = plt.hist(self.df['price'][hash_code])
+        fig = ax.get_figure()
+        fig.savefig('/image/hist.png')
+
         return max_price<price
         

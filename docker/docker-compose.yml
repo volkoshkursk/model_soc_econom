@@ -7,6 +7,7 @@ services:
     working_dir: /
     volumes:
       - './script_docker/app:/app'
+      - './image:/image'
     ports:
       - '5000:5000'
     
@@ -16,7 +17,8 @@ services:
     depends_on:
       - script
     volumes:
-      - './web_docker/app:/app'   
+      - './web_docker/app:/app'
+      - './image:/image'   
     ports:
       - '8989:8989'
 
