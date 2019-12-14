@@ -10,8 +10,9 @@ class MagicModel():
         df = pd.read_sql_query("select * from inp",con)
         df = df.dropna()
         print(df.shape)
-        df['hash'] = df[['code', 'good_name', 'unit']].apply(lambda x: hash(tuple(x)), axis=1)
+        df['hash'] = df[['good_name', 'unit']].apply(lambda x: hash(tuple(x)), axis=1)
         price = df[['hash', 'price']].groupby('hash').agg(list)
+        
         price['q1'] = df[['hash', 'price']].groupby('hash').quantile(1/4)['price']
         price['q3'] = df[['hash', 'price']].groupby('hash').quantile(3/4)['price']
         price['med'] =  df[['hash', 'price']].groupby('hash').median()['price']
@@ -20,8 +21,8 @@ class MagicModel():
         price['min'] = price['q1'] - 1.5*price['iqr']
         self.df = price
     
-    def predict(self, code, good_name, unit, price):
-        hash_code = hash((code, good_name, unit))
+    def predict(self, good_name, unit, price):
+        hash_code = hash((good_name, unit))
         if hash_code not in self.df.index.values.tolist():
             print('unknown value')
             return -1

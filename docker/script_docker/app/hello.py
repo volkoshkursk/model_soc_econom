@@ -12,12 +12,11 @@ print("Launching internal flask")
 
 @app.route("/")
 def accquire():
-    code = request.args.get('code')
     good = request.args.get('good')
     unit = request.args.get('unit')
     price = float(request.args.get('price'))
 
-    ans = m.predict(code = code,good_name = good, unit = unit, price = price)
+    ans = m.predict(good_name = good, unit = unit, price = price)
     if ans == -1:
         return redirect('http://localhost:8989/result?res=Unknown Value')
     elif ans:

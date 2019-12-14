@@ -12,8 +12,8 @@ app.config['SECRET_KEY'] = 'you-will-never-guess'
 def home():
     form = CheckForm()
     if form.validate_on_submit():
-        return redirect('http://0.0.0.0:5000/?code={0}&good={1}&unit={2}&price={3}'\
-            .format(form.code.data,form.good_name.data,form.unit.data,form.price.data))
+        return redirect('http://0.0.0.0:5000/?good={0}&unit={1}&price={2}'\
+            .format(form.good_name.data,form.unit.data,form.price.data))
     return render_template('check.html', title='Snached of not??', form=form)
 
 @app.route("/result")
