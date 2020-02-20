@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from flask import Flask, request, redirect
+from flask import Flask, request, redirect, jsonify
 from app.magic import MagicModel
 
 app = Flask(__name__)
@@ -17,11 +17,8 @@ def accquire():
     price = float(request.args.get('price'))
 
     ans = m.predict(good_name = good, unit = unit, price = price)
-    if ans == -1:
-        return redirect('http://localhost:8989/result?res=Unknown Value')
-    elif ans:
-        return redirect('http://localhost:8989/result?res=Snached!!!')
-    return redirect('http://localhost:8989/result?res=It is fine')
+    data = m.get_data(good, unit)
+    return jsonify({'res' : ans, 'hist' : data})
 
 
 app.run('0.0.0.0', port=5000, debug=True)

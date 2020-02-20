@@ -7,3 +7,4 @@ RUN pip install -r requirements.txt
 EXPOSE 8989
 
 ENTRYPOINT ["python", "-m", "app.hello"]
+

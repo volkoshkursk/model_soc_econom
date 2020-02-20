@@ -33,10 +33,13 @@ class MagicModel():
             print('unknown value')
             return -1
         max_price = self.df.loc[hash_code, 'max']
-        #ax = self.raw_df.loc[self.raw_df['hash'] == hash_code, 'price'].hist()
-        ax = plt.hist(self.df['price'][hash_code])
-        fig = ax.get_figure()
-        fig.savefig('/image/hist.png')
 
-        return max_price<price
+        return int(max_price<price)
+
+    def get_data(self, good_name, unit):
+        hash_code = hash((good_name, unit))
+        if (hash_code not in self.df.index.values.tolist()):
+            print('unknown value')
+            return -1
+        return self.df['price'][hash_code]
         
