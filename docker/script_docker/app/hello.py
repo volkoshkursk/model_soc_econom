@@ -17,8 +17,11 @@ def accquire():
     price = float(request.args.get('price'))
 
     ans = m.predict(good_name = good, unit = unit, price = price)
+    if ans == -1:
+        print("Info no found")
     data = m.get_data(good, unit)
     return jsonify({'res' : ans, 'hist' : data})
 
 
-app.run('0.0.0.0', port=5000, debug=True)
+app.run('0.0.0.0', port=18885, debug=True)
+

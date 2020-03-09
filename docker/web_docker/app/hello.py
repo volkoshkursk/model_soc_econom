@@ -14,7 +14,7 @@ app.config['SECRET_KEY'] = 'you-will-never-guess'
 def home():
     form = CheckForm()
     if form.validate_on_submit():
-        resp = req.get(url='http://104.248.38.165:5000', params = dict(good=form.good_name.data,unit=form.unit.data,price=form.price.data))
+        resp = req.get(url='http://0.0.0.0:18885', params = dict(good=form.good_name.data,unit=form.unit.data,price=form.price.data))
         data = resp.json()
         print("AZAZA"+str(data))
         plt.hist(data['hist'])
@@ -32,3 +32,4 @@ def result():
     return render_template('result.html',title = "bla",result = res)
 
 app.run('0.0.0.0', port=8989, debug=True)
+

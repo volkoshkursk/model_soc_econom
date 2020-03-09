@@ -8,16 +8,16 @@ class MagicModel():
         self.raw_df = None
     
     def fit(self):
-        con =  mysql.connector.connect(user='user', password='goszakupki', host='104.248.38.165', database='collection')
-        df = pd.read_sql_query("select * from inp",con)
-        df = df.dropna()
+
+        #con =  mysql.connector.connect(user='user', password='password', host='localhost', database='collection')
+	#df = pd.read_sql_query("select * from inp", con)
+	#df = df.dropna()
+        
+        df = pd.read_pickle('app/data_pickle.pkl')
         print(df.shape)
         df['hash'] = df[['good_name', 'unit']].apply(lambda x: hash(tuple(x)), axis=1)
         self.raw_df = df
         price = df[['hash', 'price']].groupby('hash').agg(list)
-
-        print(price.head())
-        print(df.head())
         
         price['q1'] = df[['hash', 'price']].groupby('hash').quantile(1/4)['price']
         price['q3'] = df[['hash', 'price']].groupby('hash').quantile(3/4)['price']

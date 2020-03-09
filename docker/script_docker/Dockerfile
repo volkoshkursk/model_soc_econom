@@ -4,4 +4,6 @@ COPY . /app
 WORKDIR /app
 RUN pip install -r requirements.txt
 
+EXPOSE 18885
+
 ENTRYPOINT ["python", "-m", "app.hello"]

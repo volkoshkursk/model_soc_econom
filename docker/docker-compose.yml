@@ -9,8 +9,7 @@ services:
       - './script_docker/app:/app'
       - './image:/image'
     ports:
-      - '5000:5000'
-    
+      - '18885:18885'
   web:
     build: web_docker/.
     working_dir: /
