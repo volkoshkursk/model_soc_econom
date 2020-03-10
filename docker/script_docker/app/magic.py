@@ -10,8 +10,8 @@ class MagicModel():
     def fit(self):
 
         #con =  mysql.connector.connect(user='user', password='password', host='localhost', database='collection')
-	#df = pd.read_sql_query("select * from inp", con)
-	#df = df.dropna()
+	    #df = pd.read_sql_query("select * from inp", con)
+	    #df = df.dropna()
         
         df = pd.read_pickle('app/data_pickle.pkl')
         print(df.shape)

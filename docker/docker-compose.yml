@@ -9,7 +9,7 @@ services:
       - './script_docker/app:/app'
       - './image:/image'
     ports:
-      - '18885:18885'
+      - '8990:8990'
   web:
     build: web_docker/.
     working_dir: /
@@ -17,7 +17,7 @@ services:
       - script
     volumes:
       - './web_docker/app:/app'
-      - './static:/app/static'   
+      #- './web_docker/app/static:/app/static   
     ports:
       - '8989:8989'
 
