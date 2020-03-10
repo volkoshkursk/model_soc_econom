@@ -17,8 +17,7 @@ services:
       - script
     volumes:
       - './web_docker/app:/app'
-      #- './web_docker/app/static:/app/static   
+      - './web_docker/static:/static'   
     ports:
       - '8989:8989'
-
   
